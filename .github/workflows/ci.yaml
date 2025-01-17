@@ -48,11 +48,12 @@ jobs:
       - name: Install Dependencies
         if: ${{ matrix.target == 'aarch64-unknown-linux-gnu' }}
         run: sudo apt install -y gcc-aarch64-linux-gnu
-      - run: cargo build --release --target ${{ matrix.target }}
-      - name: Compress and rename
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+      - name: Compress and rename [-nix]
         if: ${{ matrix.os != 'windows-latest' }}
         run: gzip -c target/${{ matrix.target }}/release/mdbook-typst-math > mdbook-typst-math-${{ matrix.target }}${{ matrix.suffix }}
-      - name: Rename
+      - name: Rename [Windows]
         if: ${{ matrix.os == 'windows-latest' }}
         run: mv target/${{ matrix.target }}/release/mdbook-typst-math${{ matrix.suffix }} mdbook-typst-math-${{ matrix.target }}${{ matrix.suffix }}
       - name: Upload Artifact
@@ -77,7 +78,7 @@ jobs:
   publish-release:
     runs-on: ubuntu-latest
     needs: [build, publish-crates]
-    if: ${{ github.ref_type == 'tag' }}
+
     permissions:
       contents: write
 
@@ -88,8 +89,14 @@ jobs:
           path: artifacts
       - name: List Artifacts
         run: ls -R artifacts
+      - name: Setup | Release notes
+        run: |
+          git log -1 --pretty='%s' > RELEASE.md
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/**/*
+            artifacts/**
+          body_path: RELEASE.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
